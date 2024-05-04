@@ -365,11 +365,18 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, "No Selection", "No item selected.")
             return
 
+        for item in items:
+            if isinstance(item, QGraphicsItemGroup):
+                QMessageBox.warning(self, "Group Object(s) Selected", "Group Object(s) Selected")
+                return
+
         dialog = EditDialog(self)
         dialog.exec()
 
         for item in items:
             if item.isSelected():
+
+
                 pen = item.pen()
                 # if dialog.corner_style:
                 #     if isinstance(item, QGraphicsRectItem):
