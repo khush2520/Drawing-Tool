@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QGraphicsRectItem,
     QGraphicsEllipseItem,
     QGraphicsItem,
-    
     QGraphicsItemGroup,
 )
 
@@ -26,13 +25,13 @@ class Shape:
         self.end_point = end_point
         self.color = color
 
-
 class GraphicsScene(QGraphicsScene):
     def __init__(self):
         super().__init__(0, 0, 400, 400)
         self.startPoint = None
         self.endPoint = None
         self.drawingShape = None
+        self.temporaryShape = None  # Add this line to store the temporary shape
 
     def mousePressEvent(self, event):
         if event.buttons() & Qt.MouseButton.LeftButton:
@@ -46,7 +45,7 @@ class GraphicsScene(QGraphicsScene):
         if event.buttons() & Qt.MouseButton.LeftButton:
             if self.drawingShape:
                 self.endPoint = event.scenePos()
-                self.update()
+                self.updateTemporaryShape()  # Call this method to update the temporary shape
             else:
                 super().mouseMoveEvent(event)
 
@@ -57,8 +56,59 @@ class GraphicsScene(QGraphicsScene):
                 self.drawShape()
                 self.startPoint = None
                 self.endPoint = None
+                self.removeItem(self.temporaryShape)  # Remove the temporary shape after drawing
+                self.temporaryShape = None
             else:
                 super().mouseReleaseEvent(event)
+
+    def updateTemporaryShape(self):
+        if self.temporaryShape:
+            self.removeItem(self.temporaryShape)
+
+        if self.drawingShape == "Line":
+            self.temporaryShape = QGraphicsLineItem(self.startPoint.x(), self.startPoint.y(), self.endPoint.x(), self.endPoint.y())
+        elif self.drawingShape == "Rectangle":
+            self.temporaryShape = QGraphicsRectItem(self.startPoint.x(), self.startPoint.y(), abs(self.endPoint.x() - self.startPoint.x()), abs(self.endPoint.y() - self.startPoint.y()))
+        # elif self.drawingShape == "Ellipse":
+        #     self.temporaryShape = QGraphicsEllipseItem((self.startPoint.x() + self.endPoint.x()) // 2, (self.startPoint.y() + self.endPoint.y()) // 2, abs(self.endPoint.x() - self.startPoint.x()), abs(self.endPoint.y() - self.startPoint.y()))
+
+        if self.temporaryShape:
+            self.addItem(self.temporaryShape)
+            self.temporaryShape.setPen(QPen(Qt.GlobalColor.black, 2, Qt.PenStyle.DashLine))
+
+    # Rest of the code remains the same
+# class GraphicsScene(QGraphicsScene):
+#     def __init__(self):
+#         super().__init__(0, 0, 400, 400)
+#         self.startPoint = None
+#         self.endPoint = None
+#         self.drawingShape = None
+
+    # def mousePressEvent(self, event):
+    #     if event.buttons() & Qt.MouseButton.LeftButton:
+    #         if self.drawingShape:
+    #             self.startPoint = event.scenePos()
+    #             self.endPoint = self.startPoint
+    #         else:
+    #             super().mousePressEvent(event)
+
+    # def mouseMoveEvent(self, event):
+    #     if event.buttons() & Qt.MouseButton.LeftButton:
+    #         if self.drawingShape:
+    #             self.endPoint = event.scenePos()
+    #             self.update()
+    #         else:
+    #             super().mouseMoveEvent(event)
+
+    # def mouseReleaseEvent(self, event):
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         if self.drawingShape:
+    #             self.endPoint = event.scenePos()
+    #             self.drawShape()
+    #             self.startPoint = None
+    #             self.endPoint = None
+    #         else:
+    #             super().mouseReleaseEvent(event)
 
     def drawShape(self):
         if self.startPoint and self.endPoint:
@@ -88,19 +138,19 @@ class GraphicsScene(QGraphicsScene):
                 self.addItem(rect)
                 rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                 rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-            elif shape.shape_type == "Ellipse":
-                ellipse = QGraphicsEllipseItem((shape.start_point.x() + shape.end_point.x()) // 2,
-                                               (shape.start_point.y() + shape.end_point.y()) // 2,
-                                               abs(shape.end_point.x() - shape.start_point.x()),
-                                               abs(shape.end_point.y() - shape.start_point.y()))
-                ellipse_brush = QBrush(Qt.GlobalColor.blue)
-                ellipse.setBrush(ellipse_brush)
-                ellipse_pen = QPen(Qt.GlobalColor.green)
-                ellipse_pen.setWidth(5)
-                ellipse.setPen(ellipse_pen)
-                self.addItem(ellipse)
-                ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+            # elif shape.shape_type == "Ellipse":
+            #     ellipse = QGraphicsEllipseItem((shape.start_point.x() + shape.end_point.x()) // 2,
+            #                                    (shape.start_point.y() + shape.end_point.y()) // 2,
+            #                                    abs(shape.end_point.x() - shape.start_point.x()),
+            #                                    abs(shape.end_point.y() - shape.start_point.y()))
+            #     ellipse_brush = QBrush(Qt.GlobalColor.blue)
+            #     ellipse.setBrush(ellipse_brush)
+            #     ellipse_pen = QPen(Qt.GlobalColor.green)
+            #     ellipse_pen.setWidth(5)
+            #     ellipse.setPen(ellipse_pen)
+            #     self.addItem(ellipse)
+            #     ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+            #     ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
             else:
                 pass
 
@@ -123,9 +173,9 @@ class MainWindow(QWidget):
         rectangle_button.clicked.connect(lambda: self.setDrawingShape("Rectangle"))
         vbox.addWidget(rectangle_button)
 
-        ellipse_button = QPushButton(QIcon("ellipse_icon.png"), "Ellipse", self)
-        ellipse_button.clicked.connect(lambda: self.setDrawingShape("Ellipse"))
-        vbox.addWidget(ellipse_button)
+        # ellipse_button = QPushButton(QIcon("ellipse_icon.png"), "Ellipse", self)
+        # ellipse_button.clicked.connect(lambda: self.setDrawingShape("Ellipse"))
+        # vbox.addWidget(ellipse_button)
 
         move_button = QPushButton(QIcon("move_icon.png"), "Select", self)
         move_button.clicked.connect(lambda: self.setDrawingShape(None))
@@ -211,15 +261,15 @@ class MainWindow(QWidget):
                 new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                 new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene.addItem(new_rect)
-            elif isinstance(item, QGraphicsEllipseItem):
-                ellipse = item
-                new_ellipse = QGraphicsEllipseItem(ellipse.rect())
-                new_ellipse.setBrush(ellipse.brush())
-                new_ellipse.setPen(ellipse.pen())
-                new_ellipse.setPos(ellipse.pos() + QPointF(20, 20))
-                new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                self.scene.addItem(new_ellipse)
+            # elif isinstance(item, QGraphicsEllipseItem):
+            #     ellipse = item
+            #     new_ellipse = QGraphicsEllipseItem(ellipse.rect())
+            #     new_ellipse.setBrush(ellipse.brush())
+            #     new_ellipse.setPen(ellipse.pen())
+            #     new_ellipse.setPos(ellipse.pos() + QPointF(20, 20))
+            #     new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+            #     new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+            #     self.scene.addItem(new_ellipse)
     def deleteSelectedShape(self):
         items = self.scene.selectedItems()
         for item in items:
