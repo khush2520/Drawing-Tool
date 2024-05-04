@@ -206,11 +206,11 @@ class MainWindow(QWidget):
 
 
 
-        up = QPushButton("Up")
+        up = QPushButton("Bring To Front")
         up.clicked.connect(self.up)
         vbox.addWidget(up)
 
-        down = QPushButton("Down")
+        down = QPushButton("Send To Back")
         down.clicked.connect(self.down)
         vbox.addWidget(down)
 
@@ -327,10 +327,12 @@ class MainWindow(QWidget):
             #     new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
             #     new_ellipse.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
             #     self.scene.addItem(new_ellipse)
+
     def deleteSelectedShape(self):
         items = self.scene.selectedItems()
         for item in items:
             self.scene.removeItem(item)
+
     def groupSelectedShapes(self):
         items = self.scene.selectedItems()
         if len(items) > 1:
@@ -375,8 +377,6 @@ class MainWindow(QWidget):
 
         for item in items:
             if item.isSelected():
-
-
                 pen = item.pen()
                 # if dialog.corner_style:
                 #     if isinstance(item, QGraphicsRectItem):
