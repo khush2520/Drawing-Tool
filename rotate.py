@@ -52,7 +52,7 @@ class EditDialog(QDialog):
 class GraphicsScene(QGraphicsScene):
     def __init__(self):
         super().__init__(0, 0, 400, 400)
-        self.setBackgroundBrush(Qt.GlobalColor.white)
+        self.setBackgroundBrush(Qt.GlobalColor.black)
         self.startPoint = None
         self.endPoint = None
         self.drawingShape = None
@@ -99,7 +99,7 @@ class GraphicsScene(QGraphicsScene):
 
         if self.temporaryShape:
             self.addItem(self.temporaryShape)
-            self.temporaryShape.setPen(QPen(Qt.GlobalColor.black, 2, Qt.PenStyle.DashLine))
+            self.temporaryShape.setPen(QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine))
 
     # Rest of the code remains the same
 # class GraphicsScene(QGraphicsScene):
@@ -137,15 +137,15 @@ class GraphicsScene(QGraphicsScene):
 
     def drawShape(self):
         if self.startPoint and self.endPoint:
-            color = Qt.GlobalColor.black  # Default color
+            color = Qt.GlobalColor.white  # Default color
             shape = Shape(self.drawingShape, self.startPoint, self.endPoint, color)
             if shape.shape_type == "Line":
                 line = QGraphicsLineItem(self.startPoint.x(),
                                          self.startPoint.y(),
                                          self.endPoint.x(),
                                          self.endPoint.y())
-                line_pen = QPen(Qt.GlobalColor.black)
-                line_pen.setWidth(2)
+                line_pen = QPen(Qt.GlobalColor.white)
+                line_pen.setWidth(4)
                 line.setPen(line_pen)
                 self.addItem(line)
                 line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -155,8 +155,8 @@ class GraphicsScene(QGraphicsScene):
                                          shape.start_point.y(),
                                          abs(shape.end_point.x() - shape.start_point.x()),
                                          abs(shape.end_point.y() - shape.start_point.y()))
-                rect_pen = QPen(Qt.GlobalColor.black)
-                rect_pen.setWidth(2)
+                rect_pen = QPen(Qt.GlobalColor.white)
+                rect_pen.setWidth(4)
                 rect.setPen(rect_pen)
                 self.addItem(rect)
                 rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
