@@ -11,6 +11,23 @@ class Shape:
         self.end_point = end_point
         self.color = color
 
+class RoundedRectItem(QGraphicsRectItem): # inherits from QGraphicsRectItem
+    def __init__(self, rect, parent=None):
+        super().__init__(rect, parent)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+
+    def shape(self):
+        path = QPainterPath()
+        path.addRoundedRect(self.rect(), 50, 50)  # Adjust the radius as needed
+        return path
+
+    def paint(self, painter, option, widget):
+        painter.setPen(self.pen())
+        painter.setBrush(self.brush())
+        painter.drawRoundedRect(self.rect(), 50, 50)  # Adjust the radius as needed
+
+
 class EditDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -101,7 +118,7 @@ class GraphicsScene(QGraphicsScene):
             self.addItem(self.temporaryShape)
             self.temporaryShape.setPen(QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine))
 
-    # Rest of the code remains the same
+
 # class GraphicsScene(QGraphicsScene):
 #     def __init__(self):
 #         super().__init__(0, 0, 400, 400)
@@ -203,8 +220,6 @@ class MainWindow(QWidget):
         move_button = QPushButton(QIcon("move_icon.png"), "Select", self)
         move_button.clicked.connect(lambda: self.setDrawingShape(None))
         vbox.addWidget(move_button)
-
-
 
         up = QPushButton("Bring To Front")
         up.clicked.connect(self.up)
@@ -378,14 +393,25 @@ class MainWindow(QWidget):
         for item in items:
             if item.isSelected():
                 pen = item.pen()
-                # if dialog.corner_style:
-                #     if isinstance(item, QGraphicsRectItem):
-                #         if dialog.corner_style == "Sharp":
-                #             pass
 
-                #         elif dialog.corner_style == "Curved":
-                #             pass
+                if dialog.corner_style:
+                    if dialog.corner_style == "Curved" and isinstance(item, QGraphicsRectItem):
+                        rect = item.rect()
+                        rounded_rect = RoundedRectItem(rect) # rounded_rect is an instance of RoundedRectItem
+                        rounded_rect.setPen(item.pen())
+                        rounded_rect.setBrush(item.brush())
+                        self.scene.removeItem(item)
+                        self.scene.addItem(rounded_rect)
+                        item = rounded_rect
 
+                    elif dialog.corner_style == "Sharp" and isinstance(item, RoundedRectItem):
+                        rect = item.rect()
+                        sharp_rect = QGraphicsRectItem(rect) 
+                        sharp_rect.setPen(item.pen())
+                        sharp_rect.setBrush(item.brush())
+                        self.scene.removeItem(item)
+                        self.scene.addItem(sharp_rect)
+                        item = sharp_rect
 
                 if dialog.color_button.isChecked():
                     color = dialog.color_button.palette().color(dialog.color_button.backgroundRole())
