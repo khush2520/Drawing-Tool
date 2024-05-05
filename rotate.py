@@ -2,7 +2,6 @@ import sys
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
-import json
 
 
 class Shape:
@@ -211,15 +210,13 @@ class MainWindow(QWidget):
 
         vbox = QVBoxLayout()
 
-        # creating save action
-        saveAction = QPushButton("Save", self)
-        # adding short cut for save action
-        saveAction.setShortcut("Ctrl + S")
-        # adding save to the file menu
-        vbox.addWidget(saveAction)
-        # adding action to the save
-        saveAction.clicked.connect(self.save)
+        saveActionTxt = QPushButton("Save as .txt", self)
+        vbox.addWidget(saveActionTxt)
+        saveActionTxt.clicked.connect(self.save_as_txt)
 
+        saveActionPng = QPushButton("Save as .png", self)
+        vbox.addWidget(saveActionPng)
+        saveActionPng.clicked.connect(self.save_as_png)
 
         line_button = QPushButton(QIcon("line_icon.png"), "Line", self)
         line_button.clicked.connect(lambda: self.setDrawingShape("Line"))
@@ -245,8 +242,6 @@ class MainWindow(QWidget):
         down.clicked.connect(self.down)
         vbox.addWidget(down)
 
-        
-
         group_button = QPushButton("Group")
         group_button.clicked.connect(self.groupSelectedShapes)
         vbox.addWidget(group_button)
@@ -260,7 +255,7 @@ class MainWindow(QWidget):
         ungroupall_button.clicked.connect(self.ungroupAllSelectedShapes)
         vbox.addWidget(ungroupall_button)
 
-        rotate = QSlider()
+        rotate = QSlider(Qt.Orientation.Horizontal)
         rotate.setRange(0, 360)
         rotate.valueChanged.connect(self.rotate)
         vbox.addWidget(rotate)
@@ -287,21 +282,35 @@ class MainWindow(QWidget):
         self.setLayout(hbox)
 
     # method for saving canvas
-    def save(self):
+    def save_as_txt(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "Text Files (*.txt)")
         if file_path:
             try:
                 with open(file_path, 'w') as file:
                     for item in self.scene.items():
                         if isinstance(item, QGraphicsLineItem):
-                            file.write(f"line {item.line().x1()} {item.line().y1()} {item.line().x2()} {item.line().y2()} {self.color_to_char(item.pen().color())}\n")
+                            file.write(f"line {item.line().x1()} {item.line().y1()} {item.line().x2()} {item.line().y2()} {item.pen().color()}\n")
                         elif isinstance(item, QGraphicsRectItem):
                             x1 = item.rect().x()
                             y1 = item.rect().y()
                             x2 = x1 + item.rect().width()
                             y2 = y1 + item.rect().height()
-                            style = "r" if item.rect().width() == item.rect().height() else "s"
-                            file.write(f"rect {x1} {y1} {x2} {y2} {self.color_to_char(item.pen().color())} {style}\n")
+                            if isinstance(item, RoundedRectItem):
+                                file.write(f"rect {x1} {y1} {x2} {y2} {item.pen().color().name()} rounded\n")
+                            else:
+                                file.write(f"rect {x1} {y1} {x2} {y2} {item.pen().color().name()} sharp\n")
+            except Exception as e:
+                print(f"Error saving file: {e}")
+
+    def save_as_png(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "PNG Files (*.png)")
+        if file_path:
+            try:
+                pixmap = QPixmap(self.scene.sceneRect().size().toSize())
+                pixmap.fill(Qt.GlobalColor.black)
+                painter = QPainter(pixmap)
+                self.scene.render(painter)
+                pixmap.save(file_path)
             except Exception as e:
                 print(f"Error saving file: {e}")
 
@@ -314,8 +323,6 @@ class MainWindow(QWidget):
             return "b"
         else:
             return "k"  # Default to black if color not recognized
-
-
 
     def up(self):
         items = self.scene.selectedItems()
