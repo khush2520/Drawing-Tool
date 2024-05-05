@@ -65,9 +65,9 @@ class EditDialog(QDialog):
                     item.setPen(pen)
 
     def handleCornerStyleChange(self, index):
-        if index == 1:  # Sharp
+        if index == 1: 
             self.corner_style = "Sharp"
-        elif index == 2:  # Curved
+        elif index == 2:
             self.corner_style = "Curved"
         else:
             self.corner_style = None
@@ -245,6 +245,8 @@ class MainWindow(QWidget):
         down.clicked.connect(self.down)
         vbox.addWidget(down)
 
+        
+
         group_button = QPushButton("Group")
         group_button.clicked.connect(self.groupSelectedShapes)
         vbox.addWidget(group_button)
@@ -252,6 +254,11 @@ class MainWindow(QWidget):
         ungroup_button = QPushButton("Ungroup")
         ungroup_button.clicked.connect(self.ungroupSelectedShapes)
         vbox.addWidget(ungroup_button)
+
+
+        ungroupall_button = QPushButton("Ungroup All")
+        ungroupall_button.clicked.connect(self.ungroupAllSelectedShapes)
+        vbox.addWidget(ungroupall_button)
 
         rotate = QSlider()
         rotate.setRange(0, 360)
@@ -422,6 +429,26 @@ class MainWindow(QWidget):
                     child.setPos(ungrouped_pos)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+
+    def ungroupAllSelectedShapes(self):
+        def ungroup_recursive(group):
+            group_pos = group.pos()
+            for child in group.childItems():
+                self.scene.removeItem(group)
+                if isinstance(child, QGraphicsItemGroup):
+                    ungroup_recursive(child)
+                else:
+                    child_pos = child.pos()
+                    ungrouped_pos = group_pos + child_pos
+                    self.scene.addItem(child)
+                    child.setPos(ungrouped_pos)
+                    child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                    child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+
+        items = self.scene.selectedItems()
+        for item in items:
+            if isinstance(item, QGraphicsItemGroup):
+                ungroup_recursive(item)
 
     def edit(self):
         items = self.scene.selectedItems()
