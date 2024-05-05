@@ -12,7 +12,7 @@ class Shape:
         self.end_point = end_point
         self.color = color
 
-class RoundedRectItem(QGraphicsRectItem): # inherits from QGraphicsRectItem
+class RoundedRectItem(QGraphicsRectItem):
     def __init__(self, rect, parent=None):
         super().__init__(rect, parent)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
@@ -23,10 +23,15 @@ class RoundedRectItem(QGraphicsRectItem): # inherits from QGraphicsRectItem
         path.addRoundedRect(self.rect(), 50, 50)  # Adjust the radius as needed
         return path
 
-    def paint(self, painter, option, widget):
+    def paint(self, painter, option, widget=None):
         painter.setPen(self.pen())
         painter.setBrush(self.brush())
         painter.drawRoundedRect(self.rect(), 50, 50)  # Adjust the radius as needed
+
+        if self.isSelected():
+            pen = QPen(Qt.GlobalColor.gray, 2, Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.drawRect(self.boundingRect())
 
 
 class EditDialog(QDialog):
