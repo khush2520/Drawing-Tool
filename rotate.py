@@ -2,6 +2,7 @@ import sys
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
+import json
 
 
 class Shape:
@@ -205,6 +206,16 @@ class MainWindow(QWidget):
 
         vbox = QVBoxLayout()
 
+        # creating save action
+        saveAction = QPushButton("Save", self)
+        # adding short cut for save action
+        saveAction.setShortcut("Ctrl + S")
+        # adding save to the file menu
+        vbox.addWidget(saveAction)
+        # adding action to the save
+        saveAction.clicked.connect(self.save)
+
+
         line_button = QPushButton(QIcon("line_icon.png"), "Line", self)
         line_button.clicked.connect(lambda: self.setDrawingShape("Line"))
         vbox.addWidget(line_button)
@@ -262,6 +273,37 @@ class MainWindow(QWidget):
         hbox.addWidget(view)
 
         self.setLayout(hbox)
+
+    # method for saving canvas
+    def save(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "Text Files (*.txt)")
+        if file_path:
+            try:
+                with open(file_path, 'w') as file:
+                    for item in self.scene.items():
+                        if isinstance(item, QGraphicsLineItem):
+                            file.write(f"line {item.line().x1()} {item.line().y1()} {item.line().x2()} {item.line().y2()} {self.color_to_char(item.pen().color())}\n")
+                        elif isinstance(item, QGraphicsRectItem):
+                            x1 = item.rect().x()
+                            y1 = item.rect().y()
+                            x2 = x1 + item.rect().width()
+                            y2 = y1 + item.rect().height()
+                            style = "r" if item.rect().width() == item.rect().height() else "s"
+                            file.write(f"rect {x1} {y1} {x2} {y2} {self.color_to_char(item.pen().color())} {style}\n")
+            except Exception as e:
+                print(f"Error saving file: {e}")
+
+    def color_to_char(self, color):
+        if color == Qt.GlobalColor.red:
+            return "r"
+        elif color == Qt.GlobalColor.green:
+            return "g"
+        elif color == Qt.GlobalColor.blue:
+            return "b"
+        else:
+            return "k"  # Default to black if color not recognized
+
+
 
     def up(self):
         items = self.scene.selectedItems()
@@ -393,25 +435,27 @@ class MainWindow(QWidget):
         for item in items:
             if item.isSelected():
                 pen = item.pen()
+                if  isinstance(item, QGraphicsRectItem) or isinstance(item, RoundedRectItem):
+                    if dialog.corner_style:
+                        if dialog.corner_style == "Curved" and isinstance(item, QGraphicsRectItem):
+                            rect = item.rect()
+                            rounded_rect = RoundedRectItem(rect) # rounded_rect is an instance of RoundedRectItem
+                            rounded_rect.setPen(item.pen())
+                            rounded_rect.setBrush(item.brush())
+                            self.scene.removeItem(item)
+                            self.scene.addItem(rounded_rect)
+                            item = rounded_rect
 
-                if dialog.corner_style:
-                    if dialog.corner_style == "Curved" and isinstance(item, QGraphicsRectItem):
-                        rect = item.rect()
-                        rounded_rect = RoundedRectItem(rect) # rounded_rect is an instance of RoundedRectItem
-                        rounded_rect.setPen(item.pen())
-                        rounded_rect.setBrush(item.brush())
-                        self.scene.removeItem(item)
-                        self.scene.addItem(rounded_rect)
-                        item = rounded_rect
-
-                    elif dialog.corner_style == "Sharp" and isinstance(item, RoundedRectItem):
-                        rect = item.rect()
-                        sharp_rect = QGraphicsRectItem(rect) 
-                        sharp_rect.setPen(item.pen())
-                        sharp_rect.setBrush(item.brush())
-                        self.scene.removeItem(item)
-                        self.scene.addItem(sharp_rect)
-                        item = sharp_rect
+                        elif dialog.corner_style == "Sharp" and isinstance(item, RoundedRectItem):
+                            rect = item.rect()
+                            sharp_rect = QGraphicsRectItem(rect)
+                            sharp_rect.setPen(item.pen())
+                            sharp_rect.setBrush(item.brush())
+                            sharp_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                            sharp_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                            self.scene.removeItem(item)
+                            self.scene.addItem(sharp_rect)
+                            item = sharp_rect
 
                 if dialog.color_button.isChecked():
                     color = dialog.color_button.palette().color(dialog.color_button.backgroundRole())
