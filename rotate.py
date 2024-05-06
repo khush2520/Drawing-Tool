@@ -320,34 +320,34 @@ class MainWindow(QWidget):
         else:
             event.accept()
 
-
     def set_unsaved_changes(self, value=True):
         self.unsaved_changes = value
 
-    # method for saving canvas
     def save_as_txt(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "Text Files (*.txt)")
         if file_path:
             try:
                 with open(file_path, 'w') as file:
-                    def save_items(items, group_level=0):
+                    def save_items(items):
                         for item in items:
                             if isinstance(item, QGraphicsLineItem):
                                 line = item.line()
-                                file.write(f"{'  ' * group_level}line {line.x1()} {line.y1()} {line.x2()} {line.y2()} {item.pen().color().name()}\n")
+                                file.write(f"line {line.x1()} {line.y1()} {line.x2()} {line.y2()} {item.pen().color().name()}\n")
                             elif isinstance(item, QGraphicsRectItem):
                                 rect = item.rect()
+                                top_left = rect.topLeft()
+                                bottom_right = rect.bottomRight()
                                 if isinstance(item, RoundedRectItem):
-                                    file.write(f"{'  ' * group_level}roundedrect {rect.x()} {rect.y()} {rect.width()} {rect.height()} {item.pen().color().name()}\n")
+                                    file.write(f"rect {top_left.x()} {top_left.y()} {bottom_right.x()} {bottom_right.y()} {item.pen().color().name()} r\n")
                                 else:
-                                    file.write(f"{'  ' * group_level}rect {rect.x()} {rect.y()} {rect.width()} {rect.height()} {item.pen().color().name()}\n")
+                                    file.write(f"rect {top_left.x()} {top_left.y()} {bottom_right.x()} {bottom_right.y()} {item.pen().color().name()} s\n")
                             elif isinstance(item, QGraphicsItemGroup):
-                                file.write(f"{'  ' * group_level}begin\n")
-                                save_items(item.childItems(), group_level + 1)
-                                file.write(f"{'  ' * group_level}end\n")
+                                file.write(f"begin\n")
+                                save_items(item.childItems())
+                                file.write(f"end\n")
 
                     save_items(items_to_save)
-                    self.unsaved_changes = False  # Set flag to False after saving
+                    self.unsaved_changes = False
             except Exception as e:
                 print(f"Error saving file: {e}")
     
@@ -416,10 +416,6 @@ class MainWindow(QWidget):
                 self.unsaved_changes = False  # Set flag to False after saving
             except Exception as e:
                 print(f"Error saving file: {e}")
-
-
-
-
 
     def up(self):
         self.unsaved_changes = True  # Set flag to True after making changes
