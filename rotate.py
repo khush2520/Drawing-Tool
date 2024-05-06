@@ -2,6 +2,7 @@ import sys
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
+import xml.etree.ElementTree as ET
 
 items_to_save = []
 
@@ -12,11 +13,20 @@ class Shape:
         self.end_point = end_point
         self.color = color
 
+class ShapeFactory:
+    @staticmethod
+    def create_shape(shape_type, startPoint = 0, endPoint = 0):
+        if shape_type == "Line":
+            return QGraphicsLineItem(startPoint.x(), startPoint.y(), endPoint.x(), endPoint.y())
+        elif shape_type == "Rectangle":
+                return QGraphicsRectItem(startPoint.x(), startPoint.y(), abs(endPoint.x() - startPoint.x()), abs(endPoint.y() - startPoint.y()))
+        else:
+            raise ValueError("Invalid shape type")
+
 class RoundedRectItem(QGraphicsRectItem):
     def __init__(self, rect, parent=None):
         super().__init__(rect, parent)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.isPartOfGroup = False
 
     def shape(self):
         path = QPainterPath()
@@ -29,9 +39,10 @@ class RoundedRectItem(QGraphicsRectItem):
         painter.drawRoundedRect(self.rect(), 50, 50)  # Adjust the radius as needed
 
         if self.isSelected():
-            pen = QPen(Qt.GlobalColor.gray, 2, Qt.PenStyle.DashLine)
-            painter.setPen(pen)
-            painter.drawRect(self.boundingRect())
+            if not self.isPartOfGroup:
+                pen = QPen(Qt.GlobalColor.gray, 1, Qt.PenStyle.DashLine)
+                painter.setPen(pen)
+                painter.drawRect(self.boundingRect())
 
 
 
@@ -130,36 +141,19 @@ class GraphicsScene(QGraphicsScene):
 
     def drawShape(self):
         global items_to_save
+        self.unsaved_changes = True  # Set flag to True after making changes
+
         if self.startPoint and self.endPoint:
-            color = Qt.GlobalColor.white  # Default color
-            shape = Shape(self.drawingShape, self.startPoint, self.endPoint, color)
-            
-            if shape.shape_type == "Line":
-                line = QGraphicsLineItem(self.startPoint.x(),
-                                         self.startPoint.y(),
-                                         self.endPoint.x(),
-                                         self.endPoint.y())
-                line_pen = QPen(Qt.GlobalColor.white)
-                line_pen.setWidth(4)
-                line.setPen(line_pen)
-                self.addItem(line)
-                items_to_save.append(line)
-                line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-            elif shape.shape_type == "Rectangle":
-                rect = QGraphicsRectItem(shape.start_point.x(),
-                                         shape.start_point.y(),
-                                         abs(shape.end_point.x() - shape.start_point.x()),
-                                         abs(shape.end_point.y() - shape.start_point.y()))
-                rect_pen = QPen(Qt.GlobalColor.white)
-                rect_pen.setWidth(4)
-                rect.setPen(rect_pen)
-                self.addItem(rect)
-                items_to_save.append(rect)
-                rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-            else:
-                pass
+            shape = ShapeFactory.create_shape(self.drawingShape, self.startPoint, self.endPoint)
+            shape_pen = QPen(Qt.GlobalColor.white)
+            shape_pen.setWidth(4)
+            shape.setPen(shape_pen)
+            shape.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+            shape.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+            self.addItem(shape)
+            items_to_save.append(shape)
+        else:
+            pass
 
 
 class MainWindow(QWidget):
@@ -177,6 +171,10 @@ class MainWindow(QWidget):
 
         vbox = QVBoxLayout()
 
+        open_button = QPushButton("Open", self)
+        open_button.clicked.connect(self.open_file)
+        vbox.addWidget(open_button)
+
         saveActionTxt = QPushButton("Save as .txt", self)
         vbox.addWidget(saveActionTxt)
         saveActionTxt.clicked.connect(self.save_as_txt)
@@ -184,6 +182,10 @@ class MainWindow(QWidget):
         saveActionPng = QPushButton("Save as .png", self)
         vbox.addWidget(saveActionPng)
         saveActionPng.clicked.connect(self.save_as_png)
+
+        save_action_xml = QPushButton("Save as .xml", self)
+        save_action_xml.clicked.connect(self.save_as_xml)
+        vbox.addWidget(save_action_xml)
 
         line_button = QPushButton(QIcon("line_icon.png"), "Line", self)
         line_button.clicked.connect(lambda: self.setDrawingShape("Line"))
@@ -248,11 +250,73 @@ class MainWindow(QWidget):
 
         self.setLayout(hbox)
 
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Drawing", "", "Text Files (*.txt)")
+        if file_path:
+            try:
+                self.scene.clear()
+                with open(file_path, 'r') as file:
+                    def load_items(group=None):
+                        while True:
+                            line = file.readline().strip()
+                            if not line:
+                                break
+                            data = line.split()
+                            if data[0] == "line":
+                                x1, y1, x2, y2, color = float(data[1]), float(data[2]), float(data[3]), float(data[4]), data[5]
+                                line_item = QGraphicsLineItem(x1, y1, x2, y2)
+                                line_item.setPen(QPen(QColor(color)))
+                                line_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                                line_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                                if group:
+                                    group.addToGroup(line_item)
+                                else:
+                                    self.scene.addItem(line_item)
+                            elif data[0] == "rect":
+                                x, y, width, height, color = float(data[1]), float(data[2]), float(data[3]), float(data[4]), data[5]
+                                rect_item = QGraphicsRectItem(x, y, width, height)
+                                rect_item.setPen(QPen(QColor(color)))
+                                rect_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                                rect_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                                if group:
+                                    group.addToGroup(rect_item)
+                                else:
+                                    self.scene.addItem(rect_item)
+                            elif data[0] == "roundedrect":
+                                x, y, width, height, color = float(data[1]), float(data[2]), float(data[3]), float(data[4]), data[5]
+                                rounded_rect_item = RoundedRectItem(QRectF(x, y, width, height))
+                                rounded_rect_item.setPen(QPen(QColor(color)))
+                                rounded_rect_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                                rounded_rect_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                                if group:
+                                    group.addToGroup(rounded_rect_item)
+                                else:
+                                    self.scene.addItem(rounded_rect_item)
+                            elif data[0] == "begin":
+                                new_group = QGraphicsItemGroup()
+                                items_to_save.append()
+                                load_items(new_group)
+                                if group:
+                                    group.addToGroup(new_group)
+                                else:
+                                    self.scene.addItem(new_group)
+                            elif data[0] == "end":
+                                return
+
+                    load_items()
+            except Exception as e:
+                print(f"Error opening file: {e}")
+
     def closeEvent(self, event):
-        print(self.unsaved_changes)
         if self.unsaved_changes:
-            event.ignore()
-            QMessageBox.warning(self, "Unsaved Changes!")
+            reply = QMessageBox.question(self, "Unsaved Changes",
+                                        "There are unsaved changes. Do you want to exit?",
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                        QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                event.accept()
+            else:
+                event.ignore()
         else:
             event.accept()
 
@@ -286,6 +350,58 @@ class MainWindow(QWidget):
                     self.unsaved_changes = False  # Set flag to False after saving
             except Exception as e:
                 print(f"Error saving file: {e}")
+    
+    def save_as_xml(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "XML Files (*.xml)")
+        if file_path:
+            try:
+                root = ET.Element("drawing")
+
+                def save_item(item_to_write, parent_element=None):
+                    if isinstance(item_to_write, QGraphicsLineItem):
+                        line = item_to_write.line()
+                        line_element = ET.SubElement(parent_element, "line")
+                        begin_element = ET.SubElement(line_element, "begin")
+                        x_begin = ET.SubElement(begin_element, "x")
+                        x_begin.text = str(line.x1())
+                        y_begin = ET.SubElement(begin_element, "y")
+                        y_begin.text = str(line.y1())
+                        end_element = ET.SubElement(line_element, "end")
+                        x_end = ET.SubElement(end_element, "x")
+                        x_end.text = str(line.x2())
+                        y_end = ET.SubElement(end_element, "y")
+                        y_end.text = str(line.y2())
+                        color_element = ET.SubElement(line_element, "color")
+                        color_element.text = item_to_write.pen().color().name()
+                    elif isinstance(item_to_write, QGraphicsRectItem):
+                        rect = item_to_write.rect()
+                        rect_element = ET.SubElement(parent_element, "rectangle")
+                        upper_left_element = ET.SubElement(rect_element, "upper-left")
+                        x_upper_left = ET.SubElement(upper_left_element, "x")
+                        x_upper_left.text = str(rect.x())
+                        y_upper_left = ET.SubElement(upper_left_element, "y")
+                        y_upper_left.text = str(rect.y())
+                        lower_right_element = ET.SubElement(rect_element, "lower-right")
+                        x_lower_right = ET.SubElement(lower_right_element, "x")
+                        x_lower_right.text = str(rect.x() + rect.width())
+                        y_lower_right = ET.SubElement(lower_right_element, "y")
+                        y_lower_right.text = str(rect.y() + rect.height())
+                        color_element = ET.SubElement(rect_element, "color")
+                        color_element.text = item_to_write.pen().color().name()
+                        corner_element = ET.SubElement(rect_element, "corner")
+                        corner_element.text = "rounded" if isinstance(item_to_write, RoundedRectItem) else "square"
+                    elif isinstance(item_to_write, QGraphicsItemGroup):
+                        group_element = ET.SubElement(parent_element, "group")
+                        for item in item_to_write.childItems():
+                            save_item(item, group_element)
+                for item in items_to_save:
+                    save_item(item, root)
+                self.unsaved_changes = False
+                tree = ET.ElementTree(root)
+                tree.write(file_path, encoding="utf-8", xml_declaration=True)
+            except Exception as e:
+                print(f"Error saving file: {e}")
+
 
     def save_as_png(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "PNG Files (*.png)")
@@ -331,79 +447,48 @@ class MainWindow(QWidget):
 
 
     def copySelectedShape(self):
-        items = self.scene.selectedItems()
-        def copy_recursive(group):
-            new_group = QGraphicsItemGroup()
-            for child in group.childItems():
-                if isinstance(child, QGraphicsLineItem):
-                    line = child
-                    new_line = QGraphicsLineItem(line.line().x1(), line.line().y1(), line.line().x2(), line.line().y2())
-                    new_line.setPen(line.pen())
-                    new_line.setPos(line.pos() + QPointF(20, 20))
-                    new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                    new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                    new_group.addToGroup(new_line)
-                elif isinstance(child, RoundedRectItem):
-                    rect = child
-                    new_rect = RoundedRectItem(rect.rect())
-                    new_rect.setBrush(rect.brush())
-                    new_rect.setPen(rect.pen())
-                    new_rect.setPos(rect.pos() + QPointF(20, 20))
-                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                    new_group.addToGroup(new_rect)
-                elif isinstance(child, QGraphicsRectItem):
-                    rect = child
-                    new_rect = QGraphicsRectItem(rect.rect())
-                    new_rect.setBrush(rect.brush())
-                    new_rect.setPen(rect.pen())
-                    new_rect.setPos(rect.pos() + QPointF(20, 20))
-                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                    new_group.addToGroup(new_rect)
-                elif isinstance(child, QGraphicsItemGroup):
-                    child_group = copy_recursive(child)
-                    new_group.addToGroup(child_group)
-            new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-            new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-            return new_group
+        self.unsaved_changes = True  # Set flag to True after making changes
 
-        for item in items:
-            self.unsaved_changes = True  # Set flag to True after making changes
+        global items_to_save
+
+        def copy_recursive(item):
             if isinstance(item, QGraphicsItemGroup):
-                new_group = copy_recursive(item)
-                new_group.setPos(item.pos() + QPointF(20, 20))
+                new_group = QGraphicsItemGroup()
+                for child in item.childItems():
+                    new_child = copy_recursive(child)
+                    new_group.addToGroup(new_child)
+                new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene.addItem(new_group)
                 items_to_save.append(new_group)
-            if isinstance(item, QGraphicsLineItem):
-                line = item
-                new_line = QGraphicsLineItem(line.line().x1(), line.line().y1(), line.line().x2(), line.line().y2())
-                new_line.setPen(line.pen())
-                new_line.setPos(line.pos() + QPointF(20, 20))
-                new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                self.scene.addItem(new_line)
-                items_to_save.append(new_line)
-            elif isinstance(item, RoundedRectItem):
-                rect = item
-                new_rect = RoundedRectItem(rect.rect())
-                new_rect.setBrush(rect.brush())
-                new_rect.setPen(rect.pen())
-                new_rect.setPos(rect.pos() + QPointF(20, 20))
-                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                self.scene.addItem(new_rect)
-                items_to_save.append(new_rect)
+                return new_group
+            elif isinstance(item, QGraphicsLineItem):
+                line = item.line()
+                start_point = QPointF(line.x1(), line.y1())
+                end_point = QPointF(line.x2(), line.y2())
+                new_shape = ShapeFactory.create_shape("Line", start_point, end_point)
             elif isinstance(item, QGraphicsRectItem):
-                rect = item
-                new_rect = QGraphicsRectItem(rect.rect())
-                new_rect.setBrush(rect.brush())
-                new_rect.setPen(rect.pen())
-                new_rect.setPos(rect.pos() + QPointF(20, 20))
-                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-                self.scene.addItem(new_rect)
-                items_to_save.append(new_rect)
+                rect = item.rect()
+                start_point = QPointF(rect.x(), rect.y())
+                end_point = QPointF(rect.x() + rect.width(), rect.y() + rect.height())
+                new_shape = ShapeFactory.create_shape("Rectangle", start_point, end_point)
+                if isinstance(item, RoundedRectItem):
+                    rounded_rect = RoundedRectItem(new_shape.rect())
+                    rounded_rect.setBrush(new_shape.brush())
+                    new_shape = rounded_rect
+            offset = QPointF(20, 20)
+            new_shape.setPen(item.pen())
+            new_shape.setPos(item.pos() + offset)
+            new_shape.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+            new_shape.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+            self.scene.addItem(new_shape)
+            items_to_save.append(new_shape)
+            return new_shape
+
+        items = self.scene.selectedItems()
+        if items:
+            for item in items:
+                copy_recursive(item)
 
     def deleteSelectedShape(self):
         global items_to_save
@@ -426,6 +511,8 @@ class MainWindow(QWidget):
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
                 items_to_save.remove(item)
                 group.addToGroup(item)
+                if isinstance(item,RoundedRectItem):
+                    item.isPartOfGroup = True
 
             self.scene.addItem(group)
             items_to_save.append(group)
@@ -452,6 +539,8 @@ class MainWindow(QWidget):
                     child.setPos(ungrouped_pos)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                    if isinstance(child,RoundedRectItem):
+                        child.isPartOfGroup = False
 
     def ungroupAllSelectedShapes(self):
         global items_to_save
@@ -471,6 +560,8 @@ class MainWindow(QWidget):
                     child.setPos(ungrouped_pos)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                     child.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                    if isinstance(child,RoundedRectItem):
+                        child.isPartOfGroup = False
 
         items = self.scene.selectedItems()
         for item in items:
@@ -501,6 +592,8 @@ class MainWindow(QWidget):
                         if dialog.corner_style == "Curved" and isinstance(item, QGraphicsRectItem):
                             rect = item.rect()
                             rounded_rect = RoundedRectItem(rect) # rounded_rect is an instance of RoundedRectItem
+                            rounded_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                            rounded_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                             rounded_rect.setPen(item.pen())
                             rounded_rect.setBrush(item.brush())
                             self.scene.removeItem(item)

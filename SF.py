@@ -307,8 +307,6 @@ class MainWindow(QWidget):
                 for child in item.childItems():
                     new_child = copy_recursive(child)
                     new_group.addToGroup(new_child)
-                offset = QPointF(20, 20)
-                new_group.setPos(item.pos() + offset)
                 new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                 new_group.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene.addItem(new_group)
