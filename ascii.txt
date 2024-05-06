@@ -1,7 +1,0 @@
-rect 128.0 140.0 268.0 261.0 #ffffff s
-rect 28.0 76.0 139.0 165.0 #ffffff s
-rect 171.0 293.0 251.0 363.0 #ffffff s
-rect 60.0 255.0 180.0 313.0 #ffffff s
-rect 133.0 289.0 133.0 289.0 #ffffff s
-rect 196.0 308.0 196.0 308.0 #ffffff s
-rect 149.0 303.0 149.0 303.0 #ffffff s

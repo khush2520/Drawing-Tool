@@ -1,3 +1,0 @@
-rect 77.0 314.0 206.0 398.0 #fff31f rounded
-rect 145.0 132.0 392.0 306.0 #ffffff sharp
-line 175.0 71.0 262.0 275.0 <PyQt6.QtGui.QColor object at 0x10c60a180>

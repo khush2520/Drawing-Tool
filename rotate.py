@@ -326,6 +326,15 @@ class MainWindow(QWidget):
                     new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                     new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                     new_group.addToGroup(new_line)
+                elif isinstance(child, RoundedRectItem):
+                    rect = child
+                    new_rect = RoundedRectItem(rect.rect())
+                    new_rect.setBrush(rect.brush())
+                    new_rect.setPen(rect.pen())
+                    new_rect.setPos(rect.pos() + QPointF(20, 20))
+                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                    new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                    new_group.addToGroup(new_rect)
                 elif isinstance(child, QGraphicsRectItem):
                     rect = child
                     new_rect = QGraphicsRectItem(rect.rect())
@@ -357,6 +366,16 @@ class MainWindow(QWidget):
                 new_line.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene.addItem(new_line)
                 items_to_save.append(new_line)
+            elif isinstance(item, RoundedRectItem):
+                rect = item
+                new_rect = RoundedRectItem(rect.rect())
+                new_rect.setBrush(rect.brush())
+                new_rect.setPen(rect.pen())
+                new_rect.setPos(rect.pos() + QPointF(20, 20))
+                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+                new_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                self.scene.addItem(new_rect)
+                items_to_save.append(new_rect)
             elif isinstance(item, QGraphicsRectItem):
                 rect = item
                 new_rect = QGraphicsRectItem(rect.rect())
@@ -464,6 +483,8 @@ class MainWindow(QWidget):
                             rounded_rect.setBrush(item.brush())
                             self.scene.removeItem(item)
                             self.scene.addItem(rounded_rect)
+                            items_to_save.remove(item)
+                            items_to_save.append(rounded_rect)
                             item = rounded_rect
 
                         elif dialog.corner_style == "Sharp" and isinstance(item, RoundedRectItem):
@@ -475,6 +496,8 @@ class MainWindow(QWidget):
                             sharp_rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
                             self.scene.removeItem(item)
                             self.scene.addItem(sharp_rect)
+                            items_to_save.remove(item)
+                            items_to_save.append(sharp_rect)
                             item = sharp_rect
 
                 if dialog.color_button.isChecked():
