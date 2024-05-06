@@ -4,6 +4,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
 items_to_save = []
+
 class Shape:
     def __init__(self, shape_type, start_point, end_point, color):
         self.shape_type = shape_type
@@ -31,6 +32,8 @@ class RoundedRectItem(QGraphicsRectItem):
             pen = QPen(Qt.GlobalColor.gray, 2, Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.drawRect(self.boundingRect())
+
+
 
 
 class EditDialog(QDialog):
@@ -125,13 +128,12 @@ class GraphicsScene(QGraphicsScene):
             self.addItem(self.temporaryShape)
             self.temporaryShape.setPen(QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine))
 
-
-
     def drawShape(self):
         global items_to_save
         if self.startPoint and self.endPoint:
             color = Qt.GlobalColor.white  # Default color
             shape = Shape(self.drawingShape, self.startPoint, self.endPoint, color)
+            
             if shape.shape_type == "Line":
                 line = QGraphicsLineItem(self.startPoint.x(),
                                          self.startPoint.y(),
@@ -161,12 +163,17 @@ class GraphicsScene(QGraphicsScene):
 
 
 class MainWindow(QWidget):
+
+
+
     def __init__(self):
-        super().__init__()
+        super(MainWindow, self).__init__()
+
 
         self.scene = GraphicsScene()
 
         self.setWindowTitle("Drawing App")
+        self.unsaved_changes = False
 
         vbox = QVBoxLayout()
 
@@ -241,6 +248,18 @@ class MainWindow(QWidget):
 
         self.setLayout(hbox)
 
+    def closeEvent(self, event):
+        print(self.unsaved_changes)
+        if self.unsaved_changes:
+            event.ignore()
+            QMessageBox.warning(self, "Unsaved Changes!")
+        else:
+            event.accept()
+
+
+    def set_unsaved_changes(self, value=True):
+        self.unsaved_changes = value
+
     # method for saving canvas
     def save_as_txt(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Drawing", "", "Text Files (*.txt)")
@@ -264,6 +283,7 @@ class MainWindow(QWidget):
                                 file.write(f"{'  ' * group_level}end\n")
 
                     save_items(items_to_save)
+                    self.unsaved_changes = False  # Set flag to False after saving
             except Exception as e:
                 print(f"Error saving file: {e}")
 
@@ -277,44 +297,41 @@ class MainWindow(QWidget):
                 self.scene.render(painter)
                 painter.end()  # End the painting before saving
                 pixmap.save(file_path)
+                self.unsaved_changes = False  # Set flag to False after saving
             except Exception as e:
                 print(f"Error saving file: {e}")
 
 
-    def color_to_char(self, color):
-        if color == Qt.GlobalColor.red:
-            return "r"
-        elif color == Qt.GlobalColor.green:
-            return "g"
-        elif color == Qt.GlobalColor.blue:
-            return "b"
-        else:
-            return "k"  # Default to black if color not recognized
+
+
 
     def up(self):
+        self.unsaved_changes = True  # Set flag to True after making changes
         items = self.scene.selectedItems()
         for item in items:
             z = item.zValue()
             item.setZValue(z + 1)
 
     def down(self):
+        self.unsaved_changes = True  # Set flag to True after making changes
         items = self.scene.selectedItems()
         for item in items:
             z = item.zValue()
             item.setZValue(z - 1)
 
     def rotate(self, value):
+        self.unsaved_changes = True  # Set flag to True after making changes
         items = self.scene.selectedItems()
         for item in items:
             item.setRotation(value)
 
     def setDrawingShape(self, shape):
+        self.unsaved_changes = True  # Set flag to True after making changes
         self.scene.drawingShape = shape
 
-   
+
     def copySelectedShape(self):
         items = self.scene.selectedItems()
-
         def copy_recursive(group):
             new_group = QGraphicsItemGroup()
             for child in group.childItems():
@@ -352,6 +369,7 @@ class MainWindow(QWidget):
             return new_group
 
         for item in items:
+            self.unsaved_changes = True  # Set flag to True after making changes
             if isinstance(item, QGraphicsItemGroup):
                 new_group = copy_recursive(item)
                 new_group.setPos(item.pos() + QPointF(20, 20))
@@ -389,7 +407,7 @@ class MainWindow(QWidget):
 
     def deleteSelectedShape(self):
         global items_to_save
-
+        self.unsaved_changes = True  # Set flag to True after making changes
         items = self.scene.selectedItems()
         for item in items:
             self.scene.removeItem(item)
@@ -401,6 +419,7 @@ class MainWindow(QWidget):
 
         items = self.scene.selectedItems()
         if len(items) > 1:
+            self.unsaved_changes = True  # Set flag to True after making changes
             group = QGraphicsItemGroup()
             for item in items:
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
@@ -419,6 +438,7 @@ class MainWindow(QWidget):
 
         items = self.scene.selectedItems()
         for item in items:
+            self.unsaved_changes = True  # Set flag to True after making changes
             if isinstance(item, QGraphicsItemGroup):
                 group = item
                 self.scene.removeItem(group)
@@ -438,9 +458,9 @@ class MainWindow(QWidget):
 
         def ungroup_recursive(group):
             group_pos = group.pos()
+            self.unsaved_changes = True  # Set flag to True after making changes
             for child in group.childItems():
                 self.scene.removeItem(group)
-                items_to_save.remove(group)
                 if isinstance(child, QGraphicsItemGroup):
                     ungroup_recursive(child)
                 else:
@@ -455,6 +475,7 @@ class MainWindow(QWidget):
         items = self.scene.selectedItems()
         for item in items:
             if isinstance(item, QGraphicsItemGroup):
+                items_to_save.remove(item)
                 ungroup_recursive(item)
 
     def edit(self):
@@ -468,6 +489,7 @@ class MainWindow(QWidget):
                 QMessageBox.warning(self, "Group Object(s) Selected", "Group Object(s) Selected")
                 return
 
+        self.unsaved_changes = True  # Set flag to True after making changes
         dialog = EditDialog(self)
         dialog.exec()
 
@@ -506,6 +528,7 @@ class MainWindow(QWidget):
                 item.setPen(pen)
 
 app = QApplication(sys.argv)
+
 window = MainWindow()
 window.show()
 app.exec()
